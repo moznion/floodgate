@@ -18,8 +18,9 @@ type opt struct {
 }
 
 type buffer struct {
-	buf []byte
-	mut *sync.Mutex
+	buf  [][]byte
+	size int
+	mut  *sync.Mutex
 }
 
 // Run floodgate application
@@ -38,7 +39,8 @@ func Run(args []string) {
 		}
 
 		b := &buffer{
-			mut: new(sync.Mutex),
+			mut:  new(sync.Mutex),
+			size: 0,
 		}
 
 		var flusher func(int)
@@ -60,8 +62,10 @@ func Run(args []string) {
 func (b *buffer) tick(interval int) {
 	for _ = range time.Tick(time.Duration(interval) * time.Second) {
 		b.mut.Lock()
-		if len(b.buf) > 0 {
-			fmt.Print(string(b.buf))
+		if b.size > 0 {
+			for _, buf := range b.buf {
+				fmt.Print(string(buf))
+			}
 			b.buf = b.buf[:0]
 		}
 		b.mut.Unlock()
@@ -80,7 +84,8 @@ func (b *buffer) scan(threshold int, flusher func(int)) {
 			panic(err)
 		}
 
-		b.buf = append(b.buf, lineBytes...)
+		b.size += len(lineBytes)
+		b.buf = append(b.buf, lineBytes)
 
 		if flusher != nil {
 			flusher(threshold)
@@ -90,8 +95,10 @@ func (b *buffer) scan(threshold int, flusher func(int)) {
 
 func (b *buffer) flushByThreshold(threshold int) {
 	b.mut.Lock()
-	if len(b.buf) >= threshold {
-		fmt.Print(string(b.buf))
+	if b.size >= threshold {
+		for _, buf := range b.buf {
+			fmt.Print(string(buf))
+		}
 		b.buf = b.buf[:0]
 	}
 	b.mut.Unlock()
