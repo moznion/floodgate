@@ -12,15 +12,17 @@ import (
 )
 
 type opt struct {
-	Help      bool `cli:"h,help" usage:"display help"`
-	Interval  int  `cli:"i,interval" usage:"intarval time to flush (second)" dft:"0"`
-	Threshold int  `cli:"t,threshold" usage:"throshold size of memory to flush (byte)" dft:"0"`
+	Help      bool   `cli:"h,help" usage:"display help"`
+	Interval  int    `cli:"i,interval" usage:"intarval time to flush (second)" dft:"0"`
+	Threshold int    `cli:"t,threshold" usage:"throshold size of memory to flush (byte)" dft:"0"`
+	Concat    string `cli:"c,concat" usage:"character to concat for each line" dft:"\n"`
 }
 
-type buffer struct {
-	buf  [][]byte
-	size int
-	mut  *sync.Mutex
+type floodgate struct {
+	concat []byte
+	buf    [][]byte
+	size   int
+	mut    *sync.Mutex
 }
 
 // Run floodgate application
@@ -38,19 +40,20 @@ func Run(args []string) {
 			os.Exit(2)
 		}
 
-		b := &buffer{
-			mut:  new(sync.Mutex),
-			size: 0,
+		fg := &floodgate{
+			concat: []byte(argv.Concat),
+			mut:    new(sync.Mutex),
+			size:   0,
 		}
 
 		var flusher func(int)
 		if argv.Threshold > 0 {
-			flusher = b.flushByThreshold
+			flusher = fg.flush
 		}
-		go b.scan(argv.Threshold, flusher)
+		go fg.scan(argv.Threshold, flusher)
 
 		if argv.Interval > 0 {
-			go b.tick(argv.Interval)
+			go fg.tick(argv.Interval)
 		}
 
 		return nil
@@ -59,21 +62,15 @@ func Run(args []string) {
 	select {}
 }
 
-func (b *buffer) tick(interval int) {
+func (fg *floodgate) tick(interval int) {
 	for _ = range time.Tick(time.Duration(interval) * time.Second) {
-		b.mut.Lock()
-		if b.size > 0 {
-			for _, buf := range b.buf {
-				fmt.Print(string(buf))
-			}
-			b.buf = b.buf[:0]
-		}
-		b.mut.Unlock()
+		fg.flush(0)
 	}
 }
 
-func (b *buffer) scan(threshold int, flusher func(int)) {
+func (fg *floodgate) scan(threshold int, flusher func(int)) {
 	r := bufio.NewReader(os.Stdin)
+	concatStr := string(fg.concat)
 
 	for {
 		lineBytes, err := r.ReadBytes('\n')
@@ -84,8 +81,11 @@ func (b *buffer) scan(threshold int, flusher func(int)) {
 			panic(err)
 		}
 
-		b.size += len(lineBytes)
-		b.buf = append(b.buf, lineBytes)
+		fg.size += len(lineBytes)
+		if concatStr != "\n" {
+			lineBytes = append(lineBytes[:len(lineBytes)-1], fg.concat...)
+		}
+		fg.buf = append(fg.buf, lineBytes)
 
 		if flusher != nil {
 			flusher(threshold)
@@ -93,13 +93,14 @@ func (b *buffer) scan(threshold int, flusher func(int)) {
 	}
 }
 
-func (b *buffer) flushByThreshold(threshold int) {
-	b.mut.Lock()
-	if b.size >= threshold {
-		for _, buf := range b.buf {
+func (fg *floodgate) flush(tsize int) {
+	fg.mut.Lock()
+	if fg.size > tsize {
+		for _, buf := range fg.buf {
 			fmt.Print(string(buf))
 		}
-		b.buf = b.buf[:0]
+		fg.buf = fg.buf[:0]
+		fg.size = 0
 	}
-	b.mut.Unlock()
+	fg.mut.Unlock()
 }
