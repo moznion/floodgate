@@ -16,12 +16,14 @@ type opt struct {
 	Interval  int    `cli:"i,interval" usage:"intarval time to flush (second)" dft:"0"`
 	Threshold int    `cli:"t,threshold" usage:"throshold size of memory to flush (byte)" dft:"0"`
 	Concat    string `cli:"c,concat" usage:"character to concat for each line" dft:"\n"`
+	IsStderr  bool   `cli:"stderr" usage:"flush to STDERR"`
 }
 
 type floodgate struct {
 	concat []byte
 	buf    [][]byte
 	size   int
+	dst    *os.File
 	mut    *sync.Mutex
 }
 
@@ -44,6 +46,10 @@ func Run(args []string) {
 			concat: []byte(argv.Concat),
 			mut:    new(sync.Mutex),
 			size:   0,
+			dst:    os.Stdout,
+		}
+		if argv.IsStderr {
+			fg.dst = os.Stderr
 		}
 
 		var flusher func(int)
@@ -97,7 +103,7 @@ func (fg *floodgate) flush(tsize int) {
 	fg.mut.Lock()
 	if fg.size > tsize {
 		for _, buf := range fg.buf {
-			fmt.Print(string(buf))
+			fmt.Fprintf(fg.dst, string(buf))
 		}
 		fg.buf = fg.buf[:0]
 		fg.size = 0
