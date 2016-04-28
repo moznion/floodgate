@@ -14,6 +14,8 @@ Options:
   -h, --help              display help
   -i, --interval[=0]      intarval time to flush (second)
   -t, --threshold[=0]     throshold size of memory to flush (byte)
+  -c, --concat[=\n]       character to concat for each line
+      --stderr            flush to STDERR (default: STDOUT)
 ```
 
 ### Examples

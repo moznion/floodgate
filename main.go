@@ -16,7 +16,7 @@ type opt struct {
 	Interval  int    `cli:"i,interval" usage:"intarval time to flush (second)" dft:"0"`
 	Threshold int    `cli:"t,threshold" usage:"throshold size of memory to flush (byte)" dft:"0"`
 	Concat    string `cli:"c,concat" usage:"character to concat for each line" dft:"\n"`
-	IsStderr  bool   `cli:"stderr" usage:"flush to STDERR"`
+	IsStderr  bool   `cli:"stderr" usage:"flush to STDERR (default: STDOUT)"`
 }
 
 type floodgate struct {
