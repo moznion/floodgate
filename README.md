@@ -1,4 +1,4 @@
-floodgate
+floodgate [![Build Status](https://travis-ci.org/moznion/floodgate.svg?branch=master)](https://travis-ci.org/moznion/floodgate)
 ==
 
 A tool to accumulate input from STDIN and flush that with according to rule.
