@@ -40,5 +40,22 @@ subtest 'with interval' => sub {
     }
 };
 
+subtest 'stderr' => sub {
+    subtest 'should flush' => sub {
+        my $got = `echo \"foo\" | $FindBin::Bin/floodgate --threshold=1 2>/dev/null`;
+        is length $got, 4;
+    };
+
+    subtest 'should not flush' => sub {
+        my $got = `echo \"foo\" | $FindBin::Bin/floodgate --threshold=1 --stderr 2>/dev/null`;
+        is length $got, 0;
+    };
+};
+
+subtest 'change concatination char' => sub {
+    my $got = `echo \"foo\nbar\" | $FindBin::Bin/floodgate --threshold=1 -c='Z'`;
+    is $got, 'fooZbarZ';
+};
+
 done_testing;
 
