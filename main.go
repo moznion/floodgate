@@ -20,11 +20,11 @@ type opt struct {
 }
 
 type floodgate struct {
-	concat []byte
-	buf    [][]byte
-	size   int
-	dst    *os.File
-	mut    *sync.Mutex
+	concat  []byte
+	buf     [][]byte
+	bufSize int
+	dst     *os.File
+	mut     *sync.Mutex
 }
 
 // Run floodgate application
@@ -43,10 +43,10 @@ func Run(args []string) {
 		}
 
 		fg := &floodgate{
-			concat: []byte(argv.Concat),
-			mut:    new(sync.Mutex),
-			size:   0,
-			dst:    os.Stdout,
+			concat:  []byte(argv.Concat),
+			mut:     new(sync.Mutex),
+			bufSize: 0,
+			dst:     os.Stdout,
 		}
 		if argv.IsStderr {
 			fg.dst = os.Stderr
@@ -87,7 +87,7 @@ func (fg *floodgate) scan(threshold int, flusher func(int)) {
 			panic(err)
 		}
 
-		fg.size += len(lineBytes)
+		fg.bufSize += len(lineBytes)
 		if concatStr != "\n" {
 			lineBytes = append(lineBytes[:len(lineBytes)-1], fg.concat...)
 		}
@@ -101,12 +101,12 @@ func (fg *floodgate) scan(threshold int, flusher func(int)) {
 
 func (fg *floodgate) flush(tsize int) {
 	fg.mut.Lock()
-	if fg.size > tsize {
+	if fg.bufSize > tsize {
 		for _, buf := range fg.buf {
 			fmt.Fprintf(fg.dst, string(buf))
 		}
 		fg.buf = fg.buf[:0]
-		fg.size = 0
+		fg.bufSize = 0
 	}
 	fg.mut.Unlock()
 }
